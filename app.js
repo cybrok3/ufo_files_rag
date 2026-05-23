@@ -25,11 +25,18 @@ const providerEl = document.querySelector("#provider");
 const modelEl = document.querySelector("#model");
 const askBtn = document.querySelector("#askBtn");
 const answerEl = document.querySelector("#answer");
+const answerSectionEl = document.querySelector("#answerSection");
 const sourcesEl = document.querySelector("#sources");
+const sourcesSectionEl = document.querySelector("#sourcesSection");
 const configStatusEl = document.querySelector("#configStatus");
 
 function getSelectedProvider() {
   return PROVIDERS[providerEl.value] || PROVIDERS[DEFAULT_PROVIDER];
+}
+
+function showResultSections() {
+  answerSectionEl.classList.remove("is-hidden");
+  sourcesSectionEl.classList.remove("is-hidden");
 }
 
 // Configure the status 
@@ -320,6 +327,7 @@ async function handleAsk() {
   }
 
   askBtn.disabled = true;
+  showResultSections();
   answerEl.textContent = "Searching...";
   answerEl.classList.add("muted");
 

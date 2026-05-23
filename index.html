@@ -9,9 +9,19 @@
 <body>
   <main>
     <header>
-      <p id="above-title">The UFO Guru</p>
-      <h1 id="title">UAP-Files RAG</h1>
-      <p id="configStatus" class="config-status"></p>
+      <div class="title-row">
+        <img class="title-gif" src="assets/ufo.gif" alt="" />
+        <h1 id="title">UAP-Files RAG</h1>
+      </div>
+      <p class="page-description">With the recent release of the UAP files from the USA goverment, it is hard to keep up
+        with the latest information and be sure that anyhing you get as an answer isn't hallucination or clickbait. 
+        Thus your friendly neighboorhood's dev cybrok3, built this site so you can be sure that anything you get to know about the files
+        can be verified.
+      </p>
+      <p class="page-description">
+        By default the site asks groq after a BM25 search on the files, but you can plug your own local LLM agent via Ollama Client if you are player, and use any model you want
+        for the chunks prompt.
+      </p>
     </header>
 
     <section class="search-box">
@@ -19,17 +29,19 @@
       <div class="row">
         <select id="provider"></select>
         <select id="model"></select>
-        <button id="askBtn">Search</button>
+        <button id="askBtn">Ask</button>
       </div>
     </section>
 
-    <section>
+    <p id="configStatus" class="config-status"></p>
+
+    <section id="answerSection" class="result-section is-hidden">
       <p id="answer-header">Answer</p>
       <div id="answer">Ask a question to begin.</div>
     </section>
 
-    <section>
-      <p id="sources-header">Sources</p>
+    <section id="sourcesSection" class="result-section is-hidden">
+      <p id="sources-header">Files to check</p>
       <div id="sources"></div>
     </section>
   </main>
