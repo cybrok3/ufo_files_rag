@@ -1,0 +1,6 @@
+.DS_Store
+Thumbs.db
+.env
+*.log
+data/Files-Release-1/
+data/processed/

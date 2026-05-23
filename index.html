@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UAP Files RAG</title>
+  <p id="configStatus" class="config-status"></p>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <p>Local BM25 + Ollama</p>
+      <h1>UAP Files RAG</h1>
+    </header>
+
+    <section class="search-box">
+      <textarea id="question" placeholder="Ask something about the UAP files..."></textarea>
+      <div class="row">
+        <select id="model"></select>
+        <button id="askBtn">Ask</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Answer</h2>
+      <div id="answer" class="box muted">Ask a question to begin.</div>
+    </section>
+
+    <section>
+      <h2>Sources</h2>
+      <div id="sources"></div>
+    </section>
+  </main>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "sample-001",
+    "title": "Sample UAP briefing note",
+    "source": "sample-uap-file.pdf",
+    "page": 1,
+    "text": "This is placeholder text for a future extracted UAP document chunk. Later, this will be replaced with real text and OCR output from the released UAP files."
+  },
+  {
+    "id": "sample-002",
+    "title": "Sample investigation memo",
+    "source": "sample-uap-file.pdf",
+    "page": 2,
+    "text": "The system searches document chunks using BM25 in the browser, then sends the strongest matching passages to a local Ollama model."
+  },
+  {
+    "id": "sample-003",
+    "title": "Sample witness report",
+    "source": "sample-uap-file.pdf",
+    "page": 3,
+    "text": "The answer should stay grounded in the retrieved sources and cite the matching passages so the user can check where the information came from."
+  }
+]
