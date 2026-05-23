@@ -4,6 +4,12 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 :root {
   --border-color: #d7d0c3;
   --border: 1px solid var(--border-color);
@@ -77,6 +83,10 @@ h1 {
   text-align: justify;
 }
 
+.info-button {
+  display: none;
+}
+
 h2 {
   margin: 24px 0 10px;
   font-size: 18px;
@@ -99,6 +109,8 @@ h2 {
   line-height: 1.65;
   padding: 12px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 #question::placeholder {
@@ -127,6 +139,8 @@ h2 {
 
 #answer p {
   margin: 0 0 14px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 #answer ul {
@@ -136,6 +150,8 @@ h2 {
 
 #answer li {
   margin-bottom: 10px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 #answer strong {
@@ -157,6 +173,7 @@ textarea {
   display: flex;
   gap: 10px;
   margin-top: 10px;
+  max-width: 100%;
 }
 
 button,
@@ -229,13 +246,14 @@ button:disabled {
 
 #sources-header,
 #answer-header {
-  color: white;
+  color: var(--box-text);
 }
 
 #sources {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 .is-hidden {
@@ -243,30 +261,93 @@ button:disabled {
 }
 
 @media (max-width: 600px) {
+  .info-button {
+    position: fixed;
+    top: 12px;
+    right: 10px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    color: var(--box-text);
+    font: inherit;
+    font-weight: 700;
+  }
+
+  .info-button img {
+    display: block;
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+  }
+
+  main {
+    width: min(100% - 20px, 900px);
+    padding: 22px 0;
+  }
+
   .title-row {
-    gap: 10px;
+    gap: 8px;
     max-width: 100%;
+    min-width: 0;
   }
 
   .title-gif {
-    width: clamp(52px, 18vw, 76px);
-    height: clamp(52px, 18vw, 76px);
+    width: clamp(44px, 14vw, 64px);
+    height: clamp(44px, 14vw, 64px);
   }
 
   #title {
     min-width: 0;
-    font-size: clamp(26px, 8.5vw, 40px);
-    line-height: clamp(26px, 8.5vw, 40px);
+    font-size: clamp(22px, 7.2vw, 34px);
+    line-height: clamp(22px, 7.2vw, 34px);
     overflow-wrap: normal;
     white-space: nowrap;
   }
 
+  .page-description,
+  .config-status {
+    text-align: left;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .page-description {
+    display: none;
+  }
+
+  body.info-visible .page-description {
+    display: block;
+  }
+
+  .search-box {
+    padding: 12px;
+  }
+
   .row {
     flex-direction: column;
+    min-width: 0;
   }
 
   select,
   button {
+    min-width: 0;
+    max-width: 100%;
     width: 100%;
+  }
+
+  .info-button {
+    width: 36px;
+  }
+
+  #provider,
+  #model {
+    min-width: 0;
   }
 }

@@ -29,6 +29,7 @@ const answerSectionEl = document.querySelector("#answerSection");
 const sourcesEl = document.querySelector("#sources");
 const sourcesSectionEl = document.querySelector("#sourcesSection");
 const configStatusEl = document.querySelector("#configStatus");
+const infoToggleEl = document.querySelector("#infoToggle");
 
 function getSelectedProvider() {
   return PROVIDERS[providerEl.value] || PROVIDERS[DEFAULT_PROVIDER];
@@ -356,6 +357,11 @@ async function handleAsk() {
 }
 
 askBtn.addEventListener("click", handleAsk);
+
+infoToggleEl.addEventListener("click", () => {
+  const isVisible = document.body.classList.toggle("info-visible");
+  infoToggleEl.setAttribute("aria-expanded", String(isVisible));
+});
 
 providerEl.addEventListener("change", () => {
   loadModelOptions();
