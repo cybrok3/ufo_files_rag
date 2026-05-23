@@ -11,7 +11,7 @@ window.UAP_RAG_CONFIG = {
       models: ["llama-3.3-70b-versatile"]
     }
   },
-  defaultProvider: "ollama",
+  defaultProvider: "groq",
   topK: 4,
   chunksUrl: "data/chunks.json"
 };

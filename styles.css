@@ -52,7 +52,7 @@ h1 {
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 16px;
+  gap: 30px;
 }
 
 .title-gif {
@@ -64,8 +64,8 @@ h1 {
 
 #title {
   font-family: "Orbitron", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
-  font-size: 70px;
-  line-height: 70px;
+  font-size: 50px;
+  line-height: 50px;
   font-weight: 500;
 }
 
