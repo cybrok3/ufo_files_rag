@@ -117,23 +117,35 @@ function search(query) {
 }
 
 
-// 
+function getRankedSources(results) {
+  const sourcesByTitle = new Map();
+
+  for (const item of results) {
+    const title = item.title || item.source || "Untitled source";
+    const current = sourcesByTitle.get(title);
+
+    if (!current || item.score > current.score) {
+      sourcesByTitle.set(title, { title, score: item.score });
+    }
+  }
+
+  return [...sourcesByTitle.values()].sort((a, b) => b.score - a.score);
+}
+
 function renderSources(results) {
   sourcesEl.innerHTML = "";
 
-  if (!results.length) {
+  const rankedSources = getRankedSources(results);
+
+  if (!rankedSources.length) {
     sourcesEl.innerHTML = `<div class="box muted">No sources found.</div>`;
     return;
   }
 
-  for (const [i, item] of results.entries()) {
+  for (const [i, item] of rankedSources.entries()) {
     const div = document.createElement("div");
     div.className = "source";
-    div.innerHTML = `
-      <small>[${i + 1}] ${item.source}, page ${item.page} · score ${item.score.toFixed(2)}</small>
-      <strong>${item.title}</strong>
-      <p>${item.text}</p>
-    `;
+    div.textContent = `${i + 1}. ${item.title}`;
     sourcesEl.appendChild(div);
   }
 }
@@ -295,7 +307,8 @@ async function handleAsk() {
 askBtn.addEventListener("click", handleAsk);
 
 questionEl.addEventListener("keydown", (event) => {
-  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
     handleAsk();
   }
 });

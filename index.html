@@ -10,25 +10,25 @@
 <body>
   <main>
     <header>
-      <p>Local BM25 + Ollama</p>
-      <h1>UAP Files RAG</h1>
+      <p id="above-title">The UFO Guru</p>
+      <h1 id="title">UAP-Files RAG</h1>
     </header>
 
     <section class="search-box">
       <textarea id="question" placeholder="Ask something about the UAP files..."></textarea>
       <div class="row">
         <select id="model"></select>
-        <button id="askBtn">Ask</button>
+        <button id="askBtn">Search</button>
       </div>
     </section>
 
     <section>
-      <h2>Answer</h2>
-      <div id="answer" class="box muted">Ask a question to begin.</div>
+      <p id="answer-header">Answer</p>
+      <div id="answer">Ask a question to begin.</div>
     </section>
 
     <section>
-      <h2>Sources</h2>
+      <p id="sources-header">Sources</p>
       <div id="sources"></div>
     </section>
   </main>
