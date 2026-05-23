@@ -1,9 +1,17 @@
 window.UAP_RAG_CONFIG = {
-  ollamaBaseUrl: "http://localhost:11434",
-  defaultModel: "llama3.2:latest",
-  models: [
-    "llama3.2:latest"
-  ],
+  providers: {
+    ollama: {
+      label: "Local Ollama",
+      chatUrl: "http://localhost:11434/api/chat",
+      models: ["llama3.2:latest"]
+    },
+    groq: {
+      label: "Groq",
+      chatUrl: "/api/chat",
+      models: ["llama-3.3-70b-versatile"]
+    }
+  },
+  defaultProvider: "ollama",
   topK: 4,
   chunksUrl: "data/chunks.json"
 };

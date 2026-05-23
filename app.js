@@ -1,11 +1,19 @@
 const CONFIG = window.UAP_RAG_CONFIG || {};
 
-const OLLAMA_BASE_URL = CONFIG.ollamaBaseUrl || "http://localhost:11434";
-const OLLAMA_URL = `${OLLAMA_BASE_URL}/api/chat`;
+const DEFAULT_PROVIDERS = {
+  ollama: {
+    label: "Local Ollama",
+    chatUrl: "http://localhost:11434/api/chat",
+    models: ["llama3.2:latest"]
+  }
+};
+const PROVIDERS = CONFIG.providers || DEFAULT_PROVIDERS;
+const PROVIDER_KEYS = Object.keys(PROVIDERS);
+const DEFAULT_PROVIDER = PROVIDERS[CONFIG.defaultProvider]
+  ? CONFIG.defaultProvider
+  : PROVIDER_KEYS[0];
 const TOP_K = CONFIG.topK || 4;
 const CHUNKS_URL = CONFIG.chunksUrl || "data/sample-chunks.json";
-const MODELS = CONFIG.models || ["llama3.2:latest"];
-const DEFAULT_MODEL = CONFIG.defaultModel || MODELS[0];
 
 let chunks = [];        // The chunks 
 let index = [];         // search index BM25 is going to create
@@ -13,16 +21,23 @@ let idf = new Map();    // Inverse do frequency
 let avgDocLength = 0;   // Average length in tokens of all docs, is going to be used by BM25
 
 const questionEl = document.querySelector("#question");
+const providerEl = document.querySelector("#provider");
 const modelEl = document.querySelector("#model");
 const askBtn = document.querySelector("#askBtn");
 const answerEl = document.querySelector("#answer");
 const sourcesEl = document.querySelector("#sources");
 const configStatusEl = document.querySelector("#configStatus");
 
+function getSelectedProvider() {
+  return PROVIDERS[providerEl.value] || PROVIDERS[DEFAULT_PROVIDER];
+}
+
 // Configure the status 
 function showConfigStatus() {
+  const provider = getSelectedProvider();
+
   configStatusEl.textContent =
-    `Ollama: ${OLLAMA_BASE_URL} · Model: ${DEFAULT_MODEL} · Chunks: ${CHUNKS_URL}`;
+    `${provider.label}: ${provider.chatUrl} - Model: ${modelEl.value} - Chunks: ${CHUNKS_URL}`;
 }
 
 // Return the text into tokens == words
@@ -30,16 +45,37 @@ function tokenize(text) {
   return text.toLowerCase().match(/[a-z0-9]{2,}/g) || [];
 }
 
+function loadProviderOptions() {
+  providerEl.innerHTML = "";
+
+  for (const key of PROVIDER_KEYS) {
+    const provider = PROVIDERS[key];
+    const option = document.createElement("option");
+    option.value = key;
+    option.textContent = provider.label || key;
+
+    if (key === DEFAULT_PROVIDER) {
+      option.selected = true;
+    }
+
+    providerEl.appendChild(option);
+  }
+}
+
 // Load the LLM model options from the config.js
 function loadModelOptions() {
+  const provider = getSelectedProvider();
+  const models = provider.models || [];
+  const defaultModel = provider.defaultModel || models[0] || "";
+
   modelEl.innerHTML = "";
 
-  for (const model of MODELS) {
+  for (const model of models) {
     const option = document.createElement("option");
     option.value = model;
     option.textContent = model;
 
-    if (model === DEFAULT_MODEL) {
+    if (model === defaultModel) {
       option.selected = true;
     }
 
@@ -178,9 +214,11 @@ function cleanAnswer(text) {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
-// Ask the Ollama the prompt
-async function askOllama(question, results) {
-  const res = await fetch(OLLAMA_URL, {
+// Ask the selected LLM agent
+async function askLLM(question, results) {
+  const provider = getSelectedProvider();
+
+  const res = await fetch(provider.chatUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -200,11 +238,16 @@ async function askOllama(question, results) {
   });
 
   if (!res.ok) {
-    throw new Error("Ollama request failed");
+    throw new Error("LLM request failed");
   }
 
   const data = await res.json();
-  return cleanAnswer(data.message?.content || "No answer returned.");
+
+  return cleanAnswer(
+    data.message?.content ||
+    data.choices?.[0]?.message?.content ||
+    "No answer returned."
+  );
 }
 
 function escapeHtml(value) {
@@ -289,15 +332,15 @@ async function handleAsk() {
     return;
   }
 
-  answerEl.textContent = "Asking Ollama...";
+  answerEl.textContent = `Asking ${getSelectedProvider().label}...`;
 
   try {
-    const answer = await askOllama(question, results);
+    const answer = await askLLM(question, results);
     renderAnswer(answer);
     answerEl.classList.remove("muted");
   } catch {
     answerEl.textContent =
-      "Ollama is not reachable. Start Ollama locally, pull the selected model, and try again.";
+      `${getSelectedProvider().label} is not reachable. Check the selected provider and try again.`;
     answerEl.classList.add("muted");
   }
 
@@ -306,6 +349,13 @@ async function handleAsk() {
 
 askBtn.addEventListener("click", handleAsk);
 
+providerEl.addEventListener("change", () => {
+  loadModelOptions();
+  showConfigStatus();
+});
+
+modelEl.addEventListener("change", showConfigStatus);
+
 questionEl.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
@@ -313,6 +363,7 @@ questionEl.addEventListener("keydown", (event) => {
   }
 });
 
+loadProviderOptions();
 loadModelOptions();
 showConfigStatus();
 loadChunks();

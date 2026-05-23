@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>UAP Files RAG</title>
-  <p id="configStatus" class="config-status"></p>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -12,11 +11,13 @@
     <header>
       <p id="above-title">The UFO Guru</p>
       <h1 id="title">UAP-Files RAG</h1>
+      <p id="configStatus" class="config-status"></p>
     </header>
 
     <section class="search-box">
       <textarea id="question" placeholder="Ask something about the UAP files..."></textarea>
       <div class="row">
+        <select id="provider"></select>
         <select id="model"></select>
         <button id="askBtn">Search</button>
       </div>
