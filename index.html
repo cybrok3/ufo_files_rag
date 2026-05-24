@@ -32,15 +32,30 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <button id="infoToggle" class="info-button" type="button" aria-label="Show page information" aria-expanded="false">
-    <img src="assets/info.png" alt="" />
-  </button>
-
   <main>
     <header>
+      <div class="mobile-actions">
+        <a
+          class="coffee-button coffee-button-mobile"
+          href="https://www.buymeacoffee.com/cybrok3"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img src="assets/coffee.png" alt="" />
+          <span>Buy me a coffee</span>
+        </a>
+
+        <button id="infoToggle" class="info-button" type="button" aria-label="Show page information" aria-expanded="false">
+          <img src="assets/info.png" alt="" />
+        </button>
+      </div>
       <div class="title-row">
         <img class="title-gif" src="assets/app_icon.png" alt="" />
-        <h1 id="title">UAP-Files RAG</h1>
+        <img id="title" class="title-logo" src="assets/logo.png" alt="UAP-Files RAG" />
+        <a class="coffee-button coffee-button-desktop" href="https://www.buymeacoffee.com/cybrok3" target="_blank" rel="noopener noreferrer">
+          <img src="assets/coffee.png" alt="" />
+          <span>Buy me a coffee</span>
+        </a>
       </div>
       <p class="page-description">With the recent release of the UAP files from the USA goverment, it is hard to keep up
         with the latest information and be sure that anyhing you get as an answer isn't hallucination or clickbait. 
