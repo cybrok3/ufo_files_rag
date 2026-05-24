@@ -2,5 +2,5 @@
 Thumbs.db
 .env
 *.log
-data/Files-Release-1/
+data/Files-Release-*/
 data/processed/

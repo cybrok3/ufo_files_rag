@@ -53,6 +53,51 @@ function tokenize(text) {
   return text.toLowerCase().match(/[a-z0-9]{2,}/g) || [];
 }
 
+function releasePhraseTokens(text) {
+  const tokens = [];
+  const matches = String(text).matchAll(/release[-_\s]*(\d+)/gi);
+
+  for (const match of matches) {
+    tokens.push(`release${match[1]}`);
+  }
+
+  return tokens;
+}
+
+function searchTokens(text) {
+  return [...new Set([...tokenize(text), ...releasePhraseTokens(text)])];
+}
+
+function countTerms(terms) {
+  const counts = new Map();
+
+  for (const term of terms) {
+    counts.set(term, (counts.get(term) || 0) + 1);
+  }
+
+  return counts;
+}
+
+function releaseTokens(release) {
+  if (!release) return [];
+
+  const compactRelease = String(release).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  return [...new Set([...tokenize(String(release)), `release${compactRelease}`])];
+}
+
+function metadataBoost(queryTerms, counts, weight) {
+  let boost = 0;
+
+  for (const term of queryTerms) {
+    if (counts.has(term)) {
+      boost += weight;
+    }
+  }
+
+  return boost;
+}
+
 function loadProviderOptions() {
   providerEl.innerHTML = "";
 
@@ -101,16 +146,16 @@ async function loadChunks() {
 // Creates BM25-ready index
 function buildIndex() {
   index = chunks.map((chunk) => {
-    const terms = tokenize(`${chunk.title} ${chunk.source} ${chunk.text}`);
-    const counts = new Map();
-
-    for (const term of terms) {
-      counts.set(term, (counts.get(term) || 0) + 1);
-    }
+    const titleTerms = tokenize(`${chunk.title} ${chunk.source}`);
+    const releaseTerms = releaseTokens(chunk.release);
+    const textTerms = tokenize(chunk.text);
+    const terms = [...titleTerms, ...releaseTerms, ...textTerms];
 
     return {
       chunk,
-      counts,
+      counts: countTerms(terms),
+      titleCounts: countTerms(titleTerms),
+      releaseCounts: countTerms(releaseTerms),
       length: terms.length || 1 // Number of tokens
     };
   });
@@ -136,9 +181,11 @@ function buildIndex() {
 
 // Main search function
 function search(query) {
-  const terms = [...new Set(tokenize(query))];
+  const terms = searchTokens(query);
   const k1 = 1.5; 
   const b = 0.75;
+  const titleWeight = 5.0;
+  const releaseWeight = 14.0;
 
   return index
     .map((doc) => {
@@ -153,6 +200,9 @@ function search(query) {
         score += termIdf * ((freq * (k1 + 1)) / denom);
       }
 
+      score += metadataBoost(terms, doc.titleCounts, titleWeight);
+      score += metadataBoost(terms, doc.releaseCounts, releaseWeight);
+
       return { ...doc.chunk, score };
     })
     .filter((item) => item.score > 0)
@@ -161,15 +211,33 @@ function search(query) {
 }
 
 
+function releaseLabel(item) {
+  return item.release ? `Release ${item.release}` : "";
+}
+
+function sourceDisplayTitle(item) {
+  const release = releaseLabel(item);
+  const title = item.title || item.source || "Untitled source";
+
+  return release ? `${title} (${release})` : title;
+}
+
 function getRankedSources(results) {
   const sourcesByTitle = new Map();
 
   for (const item of results) {
     const title = item.title || item.source || "Untitled source";
-    const current = sourcesByTitle.get(title);
+    const release = releaseLabel(item);
+    const key = `${release || "unknown"}::${title}`;
+    const current = sourcesByTitle.get(key);
 
     if (!current || item.score > current.score) {
-      sourcesByTitle.set(title, { title, score: item.score });
+      sourcesByTitle.set(key, {
+        title,
+        release,
+        displayTitle: sourceDisplayTitle(item),
+        score: item.score
+      });
     }
   }
 
@@ -189,26 +257,61 @@ function renderSources(results) {
   for (const [i, item] of rankedSources.entries()) {
     const div = document.createElement("div");
     div.className = "source";
-    div.textContent = `${i + 1}. ${item.title}`;
+    div.textContent = `${i + 1}. ${item.displayTitle}`;
     sourcesEl.appendChild(div);
   }
 }
 
+function buildCorpusSummary(results) {
+  const releases = new Set();
+  const sources = new Set();
+
+  for (const item of results) {
+    if (item.release) {
+      releases.add(releaseLabel(item));
+    }
+
+    if (item.title || item.source) {
+      sources.add(sourceDisplayTitle(item));
+    }
+  }
+
+  return [
+    "Corpus: released UAP files and related historical/government documents.",
+    "The word \"release\" refers to a foldered document release in this app, such as Release 1 or Release 2.",
+    releases.size ? `Retrieved releases: ${[...releases].join(", ")}.` : "",
+    sources.size ? `Retrieved source documents: ${[...sources].join("; ")}.` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 // Build the prompt that's going to be fed into Local Ollama
 function buildPrompt(question, results) {
+  const corpusSummary = buildCorpusSummary(results);
   const context = results
-    .map((item, i) => `[${i + 1}] ${item.title} (${item.source}, page ${item.page})\n${item.text}`)
+    .map((item, i) => {
+      const release = releaseLabel(item);
+      const releaseText = release ? `, ${release}` : "";
+
+      return `[${i + 1}] ${item.title} (${item.source}${releaseText}, page ${item.page})\n${item.text}`;
+    })
     .join("\n\n");
 
   return `
 You answer questions about UAP files.
 Do not invent new information.
 Use only the context below.
+When the user mentions a release, such as "Release 2" or "Release-2", interpret that as a UAP document release from this app.
+If the user asks what a release or document is about, summarize the retrieved source documents and say when the retrieved context is only partial.
 Format the answer with short paragraphs and bullet points when useful. 
 Use Markdown bold for key labels.
 If the context is not enough, say that clearly.
 Answer with bullet points.
 Cite sources with [1], [2], etc.
+
+Corpus summary:
+${corpusSummary}
 
 Context:
 ${context}
@@ -235,7 +338,7 @@ async function askLLM(question, results) {
       messages: [
         {
           role: "system",
-          content: "You are a careful, concise research assistant."
+          content: "You are a careful, concise research assistant for a UAP files RAG app. Interpret releases and document titles as belonging to the app's UAP document corpus, and answer only from retrieved context."
         },
         {
           role: "user",

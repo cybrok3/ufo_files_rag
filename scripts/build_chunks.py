@@ -1,3 +1,4 @@
+import argparse
 import json
 import re
 from pathlib import Path
@@ -53,12 +54,42 @@ def load_pages():
     return pages
 
 
+def load_existing_chunks():
+    if not CHUNKS_FILE.exists():
+        return []
+
+    return json.loads(CHUNKS_FILE.read_text(encoding="utf-8"))
+
+
+def make_chunk(page, index, chunk_text):
+    return {
+        "id": f"{page['id']}-c{index:03d}",
+        "title": page["title"],
+        "source": page["source"],
+        "release": page.get("release"),
+        "releaseFolder": page.get("releaseFolder"),
+        "page": page["page"],
+        "text": chunk_text,
+        "method": page["method"]
+    }
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="Append only chunks whose ids are not already in chunks.json."
+    )
+    args = parser.parse_args()
+
     if not PAGES_FILE.exists():
         raise SystemExit(f"Missing file: {PAGES_FILE}")
 
     pages = load_pages()
-    chunks = []
+    chunks = load_existing_chunks() if args.append else []
+    existing_ids = {chunk.get("id") for chunk in chunks}
+    added_chunks = 0
 
     for page in pages:
         text = clean_text(page.get("text", ""))
@@ -70,14 +101,14 @@ def main():
         page_chunks = chunk_words(page_words)
 
         for index, chunk_text in enumerate(page_chunks, start=1):
-            chunks.append({
-                "id": f"{page['id']}-c{index:03d}",
-                "title": page["title"],
-                "source": page["source"],
-                "page": page["page"],
-                "text": chunk_text,
-                "method": page["method"]
-            })
+            chunk = make_chunk(page, index, chunk_text)
+
+            if chunk["id"] in existing_ids:
+                continue
+
+            chunks.append(chunk)
+            existing_ids.add(chunk["id"])
+            added_chunks += 1
 
     CHUNKS_FILE.write_text(
         json.dumps(chunks, ensure_ascii=False, indent=2),
@@ -86,6 +117,7 @@ def main():
 
     print(f"Pages read: {len(pages)}")
     print(f"Chunks written: {len(chunks)}")
+    print(f"Chunks added: {added_chunks}")
     print(f"Output: {CHUNKS_FILE}")
 
 

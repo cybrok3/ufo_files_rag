@@ -22,6 +22,39 @@ The app supports two providers:
 `-- scripts/                 # Chunk-building helpers
 ```
 
+## Adding New Releases
+
+Put each release in its own folder under `data`. The folder name only needs to contain
+`Release`, for example:
+
+```text
+data/
+|-- Files-Release-1/
+|-- Files-Release-2/
+`-- processed/
+```
+
+The extraction script scans every release folder, stores the release number on each page,
+and the chunk builder carries that into `data/chunks.json`. The UI then shows source files
+as `Document Title (Release 2)`.
+
+Full clean rebuild:
+
+```powershell
+python scripts\extract_pages.py
+python scripts\build_chunks.py
+```
+
+Faster append workflow after adding a new release folder:
+
+```powershell
+python scripts\extract_pages.py --append
+python scripts\build_chunks.py --append
+```
+
+Use the clean rebuild if you changed old PDFs, renamed release folders, or want to rebuild
+everything from scratch. Use append when you only added new files.
+
 ## Local Ollama
 
 The default local provider expects Ollama at:

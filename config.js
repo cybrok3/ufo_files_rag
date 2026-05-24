@@ -12,6 +12,6 @@ window.UAP_RAG_CONFIG = {
     }
   },
   defaultProvider: "groq",
-  topK: 4,
+  topK: 6,
   chunksUrl: "data/chunks.json"
 };
