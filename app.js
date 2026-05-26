@@ -14,9 +14,70 @@ const DEFAULT_PROVIDER = PROVIDERS[CONFIG.defaultProvider]
   : PROVIDER_KEYS[0];
 const TOP_K = CONFIG.topK || 4;
 const CHUNKS_URL = CONFIG.chunksUrl || "data/sample-chunks.json";
+const CANDIDATE_K = CONFIG.candidateK || Math.max(TOP_K * 8, 40);
+const MAX_CONTEXT_WORDS = CONFIG.maxContextWords || 6000;
+const MAX_CONTEXT_DOCS = CONFIG.maxContextDocs || 5;
+const CHUNKS_PER_DOCUMENT = CONFIG.chunksPerDocument || 3;
+const NEIGHBOR_CHUNKS = CONFIG.neighborChunks || 1;
+const SEARCH_STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "about",
+  "be",
+  "by",
+  "can",
+  "did",
+  "do",
+  "does",
+  "doc",
+  "docs",
+  "document",
+  "documents",
+  "file",
+  "files",
+  "for",
+  "from",
+  "give",
+  "how",
+  "in",
+  "into",
+  "is",
+  "it",
+  "me",
+  "of",
+  "on",
+  "or",
+  "release",
+  "so",
+  "show",
+  "summarize",
+  "summary",
+  "tell",
+  "that",
+  "the",
+  "their",
+  "them",
+  "these",
+  "this",
+  "to",
+  "was",
+  "were",
+  "what",
+  "when",
+  "where",
+  "which",
+  "who",
+  "why",
+  "with"
+]);
 
 let chunks = [];        // The chunks 
 let index = [];         // search index BM25 is going to create
+let chunksByDocument = new Map();
 let idf = new Map();    // Inverse do frequency
 let avgDocLength = 0;   // Average length in tokens of all docs, is going to be used by BM25
 
@@ -65,7 +126,12 @@ function releasePhraseTokens(text) {
 }
 
 function searchTokens(text) {
-  return [...new Set([...tokenize(text), ...releasePhraseTokens(text)])];
+  return [
+    ...new Set([
+      ...tokenize(text).filter((term) => !SEARCH_STOP_WORDS.has(term)),
+      ...releasePhraseTokens(text)
+    ])
+  ];
 }
 
 function countTerms(terms) {
@@ -96,6 +162,14 @@ function metadataBoost(queryTerms, counts, weight) {
   }
 
   return boost;
+}
+
+function documentKey(item) {
+  return `${item.release || "unknown"}::${item.source || item.title || "untitled"}`;
+}
+
+function wordCount(text) {
+  return String(text || "").trim().split(/\s+/).filter(Boolean).length;
 }
 
 function loadProviderOptions() {
@@ -145,19 +219,32 @@ async function loadChunks() {
 
 // Creates BM25-ready index
 function buildIndex() {
-  index = chunks.map((chunk) => {
+  chunksByDocument = new Map();
+
+  index = chunks.map((chunk, chunkIndex) => {
     const titleTerms = tokenize(`${chunk.title} ${chunk.source}`);
     const releaseTerms = releaseTokens(chunk.release);
     const textTerms = tokenize(chunk.text);
     const terms = [...titleTerms, ...releaseTerms, ...textTerms];
+    const key = documentKey(chunk);
 
-    return {
+    const indexedChunk = {
       chunk,
+      key,
+      chunkIndex,
       counts: countTerms(terms),
       titleCounts: countTerms(titleTerms),
       releaseCounts: countTerms(releaseTerms),
       length: terms.length || 1 // Number of tokens
     };
+
+    if (!chunksByDocument.has(key)) {
+      chunksByDocument.set(key, []);
+    }
+
+    chunksByDocument.get(key).push(indexedChunk);
+
+    return indexedChunk;
   });
 
   const docFreq = new Map(); // Computer doc frequency for each term
@@ -179,37 +266,171 @@ function buildIndex() {
   avgDocLength = index.reduce((sum, doc) => sum + doc.length, 0) / index.length;
 }
 
-// Main search function
-function search(query) {
-  const terms = searchTokens(query);
+function scoreChunk(doc, terms) {
   const k1 = 1.5; 
   const b = 0.75;
   const titleWeight = 5.0;
   const releaseWeight = 14.0;
+  let score = 0;
 
-  return index
-    .map((doc) => {
-      let score = 0;
+  for (const term of terms) {
+    const freq = doc.counts.get(term) || 0;
+    if (!freq) continue;
 
-      for (const term of terms) {
-        const freq = doc.counts.get(term) || 0;
-        if (!freq) continue;
+    const termIdf = idf.get(term) || 0;
+    const denom = freq + k1 * (1 - b + b * (doc.length / avgDocLength));
+    score += termIdf * ((freq * (k1 + 1)) / denom);
+  }
 
-        const termIdf = idf.get(term) || 0;
-        const denom = freq + k1 * (1 - b + b * (doc.length / avgDocLength));
-        score += termIdf * ((freq * (k1 + 1)) / denom);
-      }
+  score += metadataBoost(terms, doc.titleCounts, titleWeight);
+  score += metadataBoost(terms, doc.releaseCounts, releaseWeight);
 
-      score += metadataBoost(terms, doc.titleCounts, titleWeight);
-      score += metadataBoost(terms, doc.releaseCounts, releaseWeight);
-
-      return { ...doc.chunk, score };
-    })
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, TOP_K); // Keep top 4
+  return {
+    ...doc.chunk,
+    score,
+    key: doc.key,
+    chunkIndex: doc.chunkIndex
+  };
 }
 
+function scoreChunks(query, limit = CANDIDATE_K) {
+  const terms = searchTokens(query);
+
+  if (!terms.length) {
+    return [];
+  }
+
+  return index
+    .map((doc) => scoreChunk(doc, terms))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+function rankDocuments(candidates) {
+  const documents = new Map();
+
+  for (const item of candidates) {
+    const key = item.key || documentKey(item);
+
+    if (!documents.has(key)) {
+      documents.set(key, {
+        key,
+        chunks: [],
+        bestScore: 0,
+        score: 0,
+        title: item.title,
+        source: item.source,
+        release: item.release
+      });
+    }
+
+    const doc = documents.get(key);
+    doc.chunks.push(item);
+    doc.bestScore = Math.max(doc.bestScore, item.score);
+  }
+
+  for (const doc of documents.values()) {
+    const topScores = doc.chunks
+      .map((item) => item.score)
+      .sort((a, b) => b - a)
+      .slice(0, 3);
+
+    doc.score = (doc.bestScore * 0.6) + (topScores.reduce((sum, score) => sum + score, 0) * 0.4);
+  }
+
+  return [...documents.values()].sort((a, b) => b.score - a.score);
+}
+
+function addContextChunk(pool, seen, item, score) {
+  if (!item?.id || seen.has(item.id)) {
+    return;
+  }
+
+  seen.add(item.id);
+  pool.push({
+    ...item,
+    score
+  });
+}
+
+function addExpandedChunks(pool, seen, item, directScore) {
+  addContextChunk(pool, seen, item, directScore);
+
+  const documentChunks = chunksByDocument.get(item.key || documentKey(item)) || [];
+  const position = documentChunks.findIndex((doc) => doc.chunk.id === item.id);
+
+  if (position === -1) {
+    return;
+  }
+
+  for (let offset = 1; offset <= NEIGHBOR_CHUNKS; offset += 1) {
+    for (const neighborPosition of [position - offset, position + offset]) {
+      const neighbor = documentChunks[neighborPosition];
+
+      if (neighbor) {
+        addContextChunk(pool, seen, {
+          ...neighbor.chunk,
+          key: neighbor.key,
+          chunkIndex: neighbor.chunkIndex
+        }, directScore * 0.75);
+      }
+    }
+  }
+}
+
+function packContextChunks(pool) {
+  const packed = [];
+  const seen = new Set();
+  let words = 0;
+
+  for (const item of pool.sort((a, b) => b.score - a.score)) {
+    if (seen.has(item.id)) {
+      continue;
+    }
+
+    const itemWords = wordCount(item.text);
+
+    if (packed.length && words + itemWords > MAX_CONTEXT_WORDS) {
+      continue;
+    }
+
+    packed.push(item);
+    seen.add(item.id);
+    words += itemWords;
+  }
+
+  return packed.sort((a, b) => b.score - a.score);
+}
+
+function retrieveContext(query) {
+  const candidates = scoreChunks(query, CANDIDATE_K);
+  const allRankedDocuments = rankDocuments(candidates);
+  const firstDoc = allRankedDocuments[0];
+  const secondDoc = allRankedDocuments[1];
+  const isClearHit = firstDoc && (!secondDoc || firstDoc.score >= secondDoc.score * 1.8);
+  const rankedDocuments = allRankedDocuments.slice(0, isClearHit ? 1 : MAX_CONTEXT_DOCS);
+  const chunksPerDocument = isClearHit ? CHUNKS_PER_DOCUMENT + 3 : CHUNKS_PER_DOCUMENT;
+  const pool = [];
+  const seen = new Set();
+
+  for (const doc of rankedDocuments) {
+    const directChunks = doc.chunks
+      .sort((a, b) => b.score - a.score)
+      .slice(0, chunksPerDocument);
+
+    for (const item of directChunks) {
+      addExpandedChunks(pool, seen, item, item.score);
+    }
+  }
+
+  return packContextChunks(pool);
+}
+
+// Main search function
+function search(query) {
+  return retrieveContext(query);
+}
 
 function releaseLabel(item) {
   return item.release ? `Release ${item.release}` : "";

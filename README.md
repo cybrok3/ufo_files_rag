@@ -55,6 +55,26 @@ python scripts\build_chunks.py --append
 Use the clean rebuild if you changed old PDFs, renamed release folders, or want to rebuild
 everything from scratch. Use append when you only added new files.
 
+## Retrieval Settings
+
+The app uses a multi-step retrieval pass instead of sending only the first few BM25 hits:
+
+1. Search a wider candidate set with BM25.
+2. Group matching chunks by source document and release.
+3. Expand around the strongest chunks with nearby chunks from the same document.
+4. Pack the final context until `maxContextWords` is reached.
+
+Tune this in `config.js`:
+
+```js
+topK: 6,              // Legacy/base value used to size candidate search
+candidateK: 48,       // First-wave BM25 candidate chunks
+maxContextDocs: 5,    // Max source documents in broad searches
+chunksPerDocument: 3, // Direct hits per selected document
+neighborChunks: 1,    // Nearby chunks before/after direct hits
+maxContextWords: 6000 // Final prompt context budget
+```
+
 ## Local Ollama
 
 The default local provider expects Ollama at:

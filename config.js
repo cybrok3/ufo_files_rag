@@ -13,5 +13,10 @@ window.UAP_RAG_CONFIG = {
   },
   defaultProvider: "groq",
   topK: 6,
+  candidateK: 48,
+  maxContextDocs: 5,
+  chunksPerDocument: 3,
+  neighborChunks: 1,
+  maxContextWords: 6000,
   chunksUrl: "data/chunks.json"
 };
